@@ -1,5 +1,8 @@
 #!/usr/bin/python
 # -*- encoding: utf-8 -*-
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 from logger import setup_logger
 from model import BiSeNet
@@ -16,13 +19,13 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 import torch.distributed as dist
 
-import os
 import os.path as osp
 import logging
 import time
 import datetime
 import argparse
 
+NUM_CLASSES = 11
 
 respth = './res'
 if not osp.exists(respth):
@@ -53,11 +56,13 @@ def train():
     setup_logger(respth)
 
     # dataset
-    n_classes = 19
+    # n_classes = 19
+    n_classes = NUM_CLASSES
     n_img_per_gpu = 16
     n_workers = 8
     cropsize = [448, 448]
-    data_root = '/home/zll/data/CelebAMask-HQ/'
+    # data_root = '/home/zll/data/CelebAMask-HQ/'
+    data_root = 'dataset'
 
     ds = FaceMask(data_root, cropsize=cropsize, mode='train')
     sampler = torch.utils.data.distributed.DistributedSampler(ds)
@@ -164,7 +169,7 @@ def train():
                 state = net.module.state_dict() if hasattr(net, 'module') else net.state_dict()
                 if dist.get_rank() == 0:
                     torch.save(state, './res/cp/{}_iter.pth'.format(it))
-                evaluate(dspth='/home/zll/data/CelebAMask-HQ/test-img', cp='{}_iter.pth'.format(it))
+                evaluate(dspth='/home/zll/data/CelebAMask-HQ/test-img', cp='{}_iter.pth'.format(it), num_classes=NUM_CLASSES)
 
     #  dump the final model
     save_pth = osp.join(respth, 'model_final_diss.pth')
